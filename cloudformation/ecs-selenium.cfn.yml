@@ -54,7 +54,7 @@ Parameters:
     Description: CIDR with SSH access for management
   MaxSpotBidPrice:
     Type: Number
-    Default: 0.17
+    Default: 0.05
     Description: Maximum price to bid for Spot Instances
   DesiredFleetCapacity:
     Type: Number
@@ -66,7 +66,7 @@ Parameters:
     Description: Desired number of Chrome nodes
   MaxChromeNodes:
     Type: Number
-    Default: 100
+    Default: 25
     Description: Maximum number of Chrome nodes
   DesiredFirefoxNodes:
     Type: Number
@@ -74,7 +74,7 @@ Parameters:
     Description: Desired number of Firefox nodes
   MaxFirefoxNodes:
     Type: Number
-    Default: 100
+    Default: 25
     Description: Maximum number of Firefox nodes
   NodeChromeImage:
     Type: String
@@ -88,7 +88,7 @@ Parameters:
     Description: Domain for VPC Hosted Zone.
   ScaleDownCron:
     Type: String
-    Default: 0 0 * * *
+    Default: 0 * * * *
     Description: Cron expression for scaling down the nodes to the default capacity (DesiredChromeNodes, DesiredFirefoxNodes).
   DockerVolumeSize:
     Type: Number
@@ -98,33 +98,23 @@ Parameters:
     Type: String
     Default: "/dev/xvdcz"
     Description: Name of volume that Docker uses for image and metadata storage.
-  HubImage:
-    Type: String
-    Default: "selenium/hub:3.141.58"
-    Description: Allows the version number for the image of the selenium hub to be changed.
-  CreatePrivateHostedZone:
-    Type: String
-    Default: "true"
-    Description: Whether to host Selenium grid publicly or privately. True for private.
-    AllowedValues: [true, false]
-
-Conditions:
-  ShouldCreatePrivateHostedZone: 
-    !Equals [!Ref CreatePrivateHostedZone, 'true']
 
 Resources:
 
   ###################################
   #              DNS                #
-  ###################################    
+  ###################################
+
   SeleniumHostedZone:
     Type: "AWS::Route53::HostedZone"
     Properties:
       HostedZoneConfig:
         Comment: "selenium-ecs hosted zone"
       Name: !Ref DomainName
-      VPCs: 
-        - !If [ShouldCreatePrivateHostedZone, [VPCId: !Ref VpcId, VPCRegion: "AWS::Region"], !Ref 'AWS::NoValue']
+      VPCs:
+        -
+          VPCId: !Ref VpcId
+          VPCRegion: !Ref "AWS::Region"
 
   ChromeRecord:
     Type: "AWS::Route53::RecordSet"
@@ -325,14 +315,12 @@ Resources:
               owner: root
               group: root
               content: !Sub |
-                */2 * * * * root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-firefox --port 4455 >> /var/log/ecs-selenium/firefox.log 2>&1
                 ${ScaleDownCron} root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-firefox --port 4455 --direction down >> /var/log/ecs-selenium/firefox.log 2>&1
             '/etc/cron.d/chrome-scaler':
               mode:  '000644'
               owner: root
               group: root
               content: !Sub |
-                */2 * * * * root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-chrome --port 4444 >> /var/log/ecs-selenium/chrome.log 2>&1
                 ${ScaleDownCron} root /usr/local/bin/scaler --cluster ecs-selenium-nodes --service ecs-node-chrome --port 4444 --direction down >> /var/log/ecs-selenium/chrome.log 2>&1
     Properties:
       AssociatePublicIpAddress: true
@@ -376,7 +364,7 @@ Resources:
   HubLoadBalancer:
     Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
     Properties:
-      Scheme: internal
+      Scheme: internet-facing
       SecurityGroups:
       - !Ref HubLoadBalancerSecurityGroup
       Subnets: !Ref SubnetIds
@@ -471,14 +459,14 @@ Resources:
             - Name: SE_OPTS
               Value: -jettyThreads 1024
           Essential: True
-          Image: !Ref HubImage
+          Image: selenium/hub:latest
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref HubLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-hub-chrome
-          MemoryReservation: 2048
+          MemoryReservation: 1024
           Name: ecs-selenium-hub-chrome
           PortMappings:
             - ContainerPort: 4444
@@ -506,14 +494,14 @@ Resources:
             - Name: SE_OPTS
               Value: -jettyThreads 1024
           Essential: True
-          Image: !Ref  HubImage
+          Image: selenium/hub:latest
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref HubLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-hub-firefox
-          MemoryReservation: 2048
+          MemoryReservation: 256
           Name: ecs-selenium-hub-firefox
           PortMappings:
             - ContainerPort: 4444
@@ -530,6 +518,7 @@ Resources:
   ###################################
   #             NODES               #
   ###################################
+
   SpotFleetRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -542,8 +531,7 @@ Resources:
               Service: spotfleet.amazonaws.com
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AmazonEC2SpotFleetTaggingRole
-      
- 
+
   NodeRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -738,7 +726,7 @@ Resources:
               awslogs-group: !Ref NodeLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-node-chrome
-          MemoryReservation: 1024
+          MemoryReservation: 256
           Name: ecs-node-chrome
           PortMappings:
             - ContainerPort: 5555
@@ -787,7 +775,7 @@ Resources:
               awslogs-group: !Ref NodeLogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs-node-firefox
-          MemoryReservation: 1024
+          MemoryReservation: 256
           Name: ecs-node-firefox
           PortMappings:
             - ContainerPort: 5555

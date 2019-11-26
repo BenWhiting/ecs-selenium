@@ -16,48 +16,31 @@ STACK_PARAMETERS=--parameters ParameterKey=VpcId,ParameterValue="$(ECS_SELENIUM_
 				  ParameterKey=DesiredFirefoxNodes,ParameterValue="$(ECS_SELENIUM_DESIRED_FIREFOX_NODES)" \
 				  ParameterKey=DomainName,ParameterValue="$(ECS_SELENIUM_DOMAIN_NAME)" \
 				  ParameterKey=NodeFirefoxImage,ParameterValue="$(NODE_FIREFOX_IMAGE)" \
-				  ParameterKey=NodeChromeImage,ParameterValue="$(NODE_CHROME_IMAGE)" \
-				  ParameterKey=HubImage,ParameterValue="$(ECS_HUB_IMAGE)" \
-				  ParameterKey=CreatePrivateHostedZone,ParameterValue="$(CREATE_PRIVATE_HOSTED_ZONE)"
+				  ParameterKey=NodeChromeImage,ParameterValue="$(NODE_CHROME_IMAGE)"
 
 
 create-stack:
 	aws cloudformation create-stack \
-		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
 		$(STACK_PARAMETERS)
+
+wait-stack-create-complete:
+	aws cloudformation wait stack-create-complete \
+		--stack-name $(ECS_SELENIUM_STACK_NAME)
+
+wait-stack-delete-complete:
+	aws cloudformation wait stack-delete-complete \
+		--stack-name $(ECS_SELENIUM_STACK_NAME)
 
 update-stack:
 	aws cloudformation update-stack \
-		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
 		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
 		$(STACK_PARAMETERS)
 
-create-changeset: 
-	aws cloudformation create-change-set \
-		--region $(AWS_REGION) \
-		--stack-name $(ECS_SELENIUM_STACK_NAME)  --capabilities CAPABILITY_NAMED_IAM \
-		--template-body file://./cloudformation/ecs-selenium.cfn.yml \
-		--change-set-name change-set-1 \
-		$(STACK_PARAMETERS)		
-
-view-changeset:
-	aws cloudformation describe-change-set \
-		--region $(AWS_REGION) \
-		--stack-name $(ECS_SELENIUM_STACK_NAME) \
-		--change-set-name change-set-1
-
-execute-changeset:
-	aws cloudformation execute-change-set \
-		--region $(AWS_REGION) \
-		--stack-name $(ECS_SELENIUM_STACK_NAME) \
-		--change-set-name change-set-1
-		
 delete-stack:
 	aws cloudformation delete-stack \
-		--region $(AWS_REGION) \
 		--stack-name $(ECS_SELENIUM_STACK_NAME)
 
 ecr-login:
@@ -71,11 +54,8 @@ ecr-create-chrome-node:
 
 update-chrome-desired: # make count=<#> update-chrome-desired
 	aws ecs update-service --cluster ecs-selenium-nodes \
-		--region $(AWS_REGION) \
-		--service $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) --desired-count 15
+		--service $(ECS_SELENIUM_CHROME_REPOSITORY_IMAGE) --desired-count $(count)
 
 update-firefox-desired: # make count=<#> update-firefox-desired
 	aws ecs update-service --cluster ecs-selenium-nodes \
-		--region $(AWS_REGION) \
 		--service $(ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE) --desired-count $(count)
-

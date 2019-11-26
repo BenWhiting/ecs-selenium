@@ -40,7 +40,7 @@ Replacing the parameters with appropriate values:
 
 ```
 AWS_ACCOUNT_ID=<account_id>
-AWS_REGION=<region>
+AWS_AWS_REGION=<region>
 
 ECS_SELENIUM_STACK_NAME=ecs-selenium
 ECS_SELENIUM_VPC_ID=<vpc-########>
@@ -56,9 +56,9 @@ ECS_SELENIUM_DOMAIN_NAME=<company.com>
 ECS_SELENIUM_CHROME_IMAGE=<location_of_your_ecs-node-chrome_image>
 ECS_SELENIUM_FIREFOX_IMAGE=<location_of_your_ecs-node-firefox_image>
 ECS_SELENIUM_FIREFOX_REPOSITORY_IMAGE=ecs-node-firefox
-ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION=<numerical_version_number>
+ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION=latest
 ECS_SELENIUM_CHROME_REPOSITORY_IMAGE=ecs-node-chrome
-ECS_SELENIUM_CHROME_REPOSITORY_VERSION=<numerical_version_number>
+ECS_SELENIUM_CHROME_REPOSITORY_VERSION=latest
 ```
 
 ### Create the ECR Repositories
@@ -77,7 +77,6 @@ make ecr-create-chrome-node
 
 You now need to build and push the node images to your docker registry. ECR is assumed by default.
 You can rebuild your images periodically to get newer browsers in your cluster.
-You can use latest in the ECS_SELENIUM_CHROME_REPOSITORY_VERSION and ECS_SELENIUM_FIREFOX_REPOSITORY_VERSION but it will make ecr messy, images are automatically tagged as latest everytime you push a new image so we reccomend using the version number on dockerhub for the image version.
 
 ```bash
 
@@ -130,14 +129,6 @@ make count=<#> update-chrome-desired
 # firefox
 make count=<#> update-firefox-desired
 ```
-
-## Making small changes
-
-If your grid is already up and running you may want to consider using changesets to upgrade to make the small change instead of using update stack. 
-
-By using a changeset you can make a small change to the cloudformation template and check what resources will be changed.
-
-This should be useful for updating images. 
 
 ## Using the Grid
 
